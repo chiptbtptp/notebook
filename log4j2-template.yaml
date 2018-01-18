@@ -1,0 +1,30 @@
+Configuration:
+  status: warn
+  name: log.dmp
+  properties:
+    property:
+      name: log_home
+      value: logs/algorithm_log
+
+  appenders:
+    RollingFile:
+      name: rolling_file
+      filename: ${log_home}/info-algorithm.log
+      append: true
+      filePattern: "${log_home}/error-%d{yyyy-MM-dd}.log.gz"
+      thresholdFilter:
+        level: info
+        onMatch: accept
+        onMismatch: deny
+      PatternLayerout:
+        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
+      Policies:
+        SizeBasedTriggeringPolicy:
+          size: 20MB
+        TimeBasedTriggeringPolicy:
+          interval: 1
+  Loggers:
+    Root:
+      level: error
+      AppenderRef:
+        ref: rolling_file
