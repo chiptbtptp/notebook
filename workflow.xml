@@ -1,0 +1,100 @@
+<workflow-app name="wf" xmlns="uri:oozie:workflow:0.1">
+    <!-- sqoop action 数据导入action模板 -->
+    <action name="import_data">
+        <sqoop xmlns="uri:oozie:sqoop-action:0.2">
+            <!--job-tracker or ResourceManager depend on hadoop 1 or 2-->
+            <job-tracker>job-tracker:8021</job-tracker>
+            <name-node>[NAME-NODE]</name-node>
+            <prepare>
+                <!-- specified paths must start with hdfs://HOST:PORT -->
+                <!--<delete path="[PATH]"/>-->
+                <!--<mkdir path="[PATH]"/>-->
+            </prepare>
+            <configuration>
+                <property>
+                    <name>[PROPERTY-NAME]</name>
+                    <value>[PROPERTY-VALUE]</value>
+                </property>
+            </configuration>
+            <!--如果mysql表没有主键或者有多个主键，需要指定一个列用于分割数据-->
+            <command>sqoop import --connect jdbc:mysql://your_mysql_IP:mysql_port/target_database --username xxx
+                --p password --table table_name_in_mysql --hbase-create-table --hbase-table table_name_in_hbase
+                --hbase-row-key mysql_key --column-family D1</command>
+            <!--<file>[FILE-PATH]</file>-->
+        </sqoop>
+        <ok to="preprocess"/>
+        <error to="end"/>
+    </action>
+
+    <!--java action-->
+    <action name="preprocess">
+        <java>
+            <job-tracker>job-tracker:8021</job-tracker>
+            <name-node>bar:8020</name-node>
+            <prepare>
+                <delete path="${jobOutput}"/>
+            </prepare>
+            <configuration>
+                <property>
+                    <name>mapred.queue.name</name>
+                    <value>default</value>
+                </property>
+            </configuration>
+            <main-class>com.mytest.Preprocess</main-class>
+            <java-opts>-Dblah</java-opts>
+            <arg>argument1</arg>
+            <arg>argument2</arg>
+            <capture-output/>
+        </java>
+        <ok to="normalization"/>
+        <error to="end"/>
+    </action>
+
+    <action name="normalization">
+        <java>
+            <job-tracker>[job-tracker:8021]</job-tracker>
+            <name-node>bar:8020</name-node>
+            <prepare>
+                <delete path="${jobOutput}"/>
+            </prepare>
+            <configuration>
+                <property>
+                    <name>mapred.queue.name</name>
+                    <value>default</value>
+                </property>
+            </configuration>
+            <main-class>com.cetiti.dmp.Normalization</main-class>
+            <!--这些参数是作为main函数的输入参数-->
+            <arg>${wf:actionData('preprocess')['tableName']}</arg>
+            <arg>${outputDir}</arg>
+            <!--上一个action的输出作为下一个action的输入，语法
+                <arg>${wf:actionData('preprocess')['arg1_name']}</arg>
+            -->
+            <capture-output/>
+        </java>
+        <ok to="split"/>
+        <error to="end"/>
+    </action>
+
+    <action name="split">
+        <java>
+            <job-tracker>job-tracker:8021</job-tracker>
+            <name-node>bar:8020</name-node>
+            <prepare>
+                <delete path="${jobOutput}"/>
+            </prepare>
+            <configuration>
+                <property>
+                    <name>mapred.queue.name</name>
+                    <value>default</value>
+                </property>
+            </configuration>
+            <main-class>com.mytest.Split</main-class>
+            <arg>argument1</arg>
+            <arg>argument2</arg>
+            <capture-output/>
+        </java>
+        <ok to="end"/>
+        <error to="end"/>
+    </action>
+</workflow-app>
